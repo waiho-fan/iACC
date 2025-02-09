@@ -6,8 +6,11 @@ import UIKit
 
 class MainTabBarController: UITabBarController {
 	
-	convenience init() {
+    private var friendsCache: FriendsCache!
+    
+    convenience init(friendCache: FriendsCache) {
 		self.init(nibName: nil, bundle: nil)
+        self.friendsCache = friendCache
 		self.setupViewController()
 	}
 
@@ -52,8 +55,21 @@ class MainTabBarController: UITabBarController {
 	}
 	
 	private func makeFriendsList() -> ListViewController {
-		let vc = ListViewController()
-		vc.fromFriendsScreen = true
+        let vc = ListViewController()
+        vc.fromFriendsScreen = true
+        vc.shouldRetry = true
+        vc.maxRetryCount = 2
+        vc.title = "Friends"
+        vc.navigationItem.rightBarButtonItem = UIBarButtonItem(barButtonSystemItem: .add, target: self, action: #selector(addFriend))
+        
+        let isPremium = User.shared?.isPremium == true
+        
+        vc.service = FriendsAPIItemServiceAdapter(
+            api: FriendsAPI.shared,
+            cache: isPremium ? friendsCache : NullFriendsCache(),   // Null Object Pattern
+            select: { [weak vc] item in
+                vc?.select(friend: item)
+            })
 		return vc
 	}
 	
@@ -75,4 +91,35 @@ class MainTabBarController: UITabBarController {
 		return vc
 	}
 	
+}
+
+// Issue: Higher level components (FriendAPI) should not depend on lower level details (ListViewController)
+// Soultion: D - Dependency Inversion Principle (依賴反轉原則)
+// >> Create a component (Adapter) in the middle to bridge and adapt their communication
+// >> To keep these two modules decoupled
+struct FriendsAPIItemServiceAdapter: ItemsService {
+    let api: FriendsAPI
+    let cache: FriendsCache
+    let select: (Friend) -> Void
+    
+    func loadItems(completion: @escaping (Result<[ItemViewModel], Error>) -> Void) {
+        api.loadFriends { result in
+            DispatchQueue.mainAsyncIfNeeded {
+                completion(result.map { items in
+                    cache.save(items)
+                    
+                    return items.map { item in
+                        ItemViewModel(friend: item, selection: {
+                            select(item)
+                        })
+                    }
+                })
+            }
+        }
+    }
+}
+
+// Null Object Pattern: same interface, but you override the methods or implement the methods and do nothing
+class NullFriendsCache: FriendsCache {
+    override func save(_ newFriends: [Friend]) {}
 }
