@@ -1,15 +1,3 @@
-# iOS Architect Crash Course • February 3rd to 9th, 2025 • EssentialDeveloper.com
-
-https://iosacademy.essentialdeveloper.com/ios-architect-crash-course/2025-a24c/
-
-It's time to put your skills to the test!
-
-This is the project used in the iOS Architect Crash Course lectures.
-
-Watch the lectures and implement what you learned into this legacy project to practice applying architectural patterns while refactoring legacy code into clean code with clean architecture.
-
----
-
 ## Instructions
 
 1) Open the `iACC.xcodeproj` project on Xcode 16.2, 16.1, 16.0 or 15.4.
