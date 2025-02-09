@@ -60,7 +60,7 @@ class MainTabBarController: UITabBarController {
         vc.shouldRetry = true
         vc.maxRetryCount = 2
         vc.title = "Friends"
-        vc.navigationItem.rightBarButtonItem = UIBarButtonItem(barButtonSystemItem: .add, target: self, action: #selector(addFriend))
+        vc.navigationItem.rightBarButtonItem = UIBarButtonItem(barButtonSystemItem: .add, target: vc, action: #selector(addFriend))
         
         let isPremium = User.shared?.isPremium == true
         
@@ -88,6 +88,15 @@ class MainTabBarController: UITabBarController {
 	private func makeCardsList() -> ListViewController {
 		let vc = ListViewController()
 		vc.fromCardsScreen = true
+        vc.shouldRetry = false
+        vc.title = "Cards"
+        vc.navigationItem.rightBarButtonItem = UIBarButtonItem(barButtonSystemItem: .add, target: vc, action: #selector(addCard))
+        
+        vc.service = CardAPIItemServiceAdapter(
+            api: CardAPI.shared,
+            select: { [weak vc] item in
+                vc?.select(card: item)
+            })
 		return vc
 	}
 	
@@ -122,4 +131,23 @@ struct FriendsAPIItemServiceAdapter: ItemsService {
 // Null Object Pattern: same interface, but you override the methods or implement the methods and do nothing
 class NullFriendsCache: FriendsCache {
     override func save(_ newFriends: [Friend]) {}
+}
+
+struct CardAPIItemServiceAdapter: ItemsService {
+    let api: CardAPI
+    let select: (Card) -> Void
+    
+    func loadItems(completion: @escaping (Result<[ItemViewModel], Error>) -> Void) {
+        api.loadCards { result in
+            DispatchQueue.mainAsyncIfNeeded {
+                completion(result.map { items in
+                    items.map { item in
+                        ItemViewModel(card: item , selection: {
+                            select(item)
+                        })
+                    }
+                })
+            }
+        }
+    }
 }
