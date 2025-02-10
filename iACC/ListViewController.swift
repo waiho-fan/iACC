@@ -6,25 +6,14 @@ import UIKit
 
 // (I) Interface Segregation Principle: 客戶端不應該被迫依賴它們不使用的方法
 // Stratepy Pattern: When you have a single interface in many different implementations or different contexts.
+// >> Polymorphic interface instead
 protocol ItemsService {
     func loadItems(completion: @escaping (Result<[ItemViewModel], any Error>) -> Void)
 }
 
 class ListViewController: UITableViewController {
     var items = [ItemViewModel]()
-    
     var service: ItemsService?
-    
-    var retryCount = 0
-    var maxRetryCount = 0
-    var shouldRetry = false
-    
-    var longDateStyle = false
-    
-    var fromReceivedTransfersScreen = false
-    var fromSentTransfersScreen = false
-    var fromCardsScreen = false
-    var fromFriendsScreen = false
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -49,43 +38,13 @@ class ListViewController: UITableViewController {
     private func handleAPIResult(_ result: Result<[ItemViewModel], Error>) {
         switch result {
         case let .success(items):
-            self.retryCount = 0
             self.items = items
             self.refreshControl?.endRefreshing()
             self.tableView.reloadData()
             
         case let .failure(error):
-            if shouldRetry && retryCount < maxRetryCount {
-                retryCount += 1
-                
-                refresh()
-                return
-            }
-            
-            retryCount = 0
-            
-            if fromFriendsScreen && User.shared?.isPremium == true {
-                (UIApplication.shared.connectedScenes.first?.delegate as! SceneDelegate).cache.loadFriends { [weak self] result in
-                    DispatchQueue.mainAsyncIfNeeded {
-                        switch result {
-                        case let .success(items):
-                            self?.items = items.map { item in
-                                ItemViewModel(friend: item, selection: { [weak self] in
-                                    self?.select(friend: item)
-                                })
-                            }
-                            self?.tableView.reloadData()
-                            
-                        case let .failure(error):
-                            self?.show(error: error)
-                        }
-                        self?.refreshControl?.endRefreshing()
-                    }
-                }
-            } else {
-                self.show(error: error)
-                self.refreshControl?.endRefreshing()
-            }
+            self.show(error: error)
+            self.refreshControl?.endRefreshing()
         }
     }
     
